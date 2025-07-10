@@ -1,0 +1,81 @@
+name: PR lint and test
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v4
+  
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install the project
+        run: uv sync --dev
+
+      - name: Install GDAL dependencies
+        run: sudo apt install gdal-bin
+
+      - name: Run Ruff
+        run: |
+          uv run ruff check --output-format=github .
+
+      - name: Run Ruff format
+        run: |
+          uv run ruff format --check
+
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+
+      - uses: actions/checkout@v4
+  
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install the project
+        run: uv sync --dev
+
+      - name: Install GDAL dependencies
+        run: sudo apt install gdal-bin
+
+      - name: Run Tests
+        run: |
+          uv run pytest
+        env:
+          POSTGRES_CONNECTION_STRING: "postgres://app:app@localhost:5432/app"
+
+          
